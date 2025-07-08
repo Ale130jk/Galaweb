@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard del Jefe - Galaga</title>
+  <link rel="stylesheet" href="jefe.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    .mensaje {
+      margin-top: 1rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+    .vacio {
+      color: #666;
+      font-style: italic;
+    }
+    .contenido-flex {
+      display: flex;
+      gap: 2rem;
+    }
+    .izquierda {
+      flex: 2;
+    }
+    .reportes {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📊 Panel del Empleado de Logística - Galaga</h1>
+  </header>
+
+  <nav>
+    <ul>
+      <li><a href="#inicio">🏠 Inicio</a></li>
+      <li><a href="#productos">📋 Ver Productos</a></li>
+      <li><a href="#reportes">📄 Reportes</a></li>
+      <li><a href="#" class="logout">🚪 Cerrar Sesión</a></li>
+    </ul>
+  </nav>
+
+  <main id="inicio">
+    <div class="contenido-flex">
+      <div class="izquierda">
+        <section class="verificacion" id="verificacion">
+          <h2>🔍 Verificar Producto</h2>
+          <form id="verificacion-form">
+            <label for="codigo">Código del Producto:</label>
+            <input type="text" id="codigo" required placeholder="Ej: PROD001" />
+            <button type="submit">✅ Validar</button>
+          </form>
+          <div id="mensaje-validacion" class="mensaje"></div>
+        </section>
+
+        <section class="productos" id="productos">
+          <h2>📦 Productos Registrados</h2>
+          <ul id="lista-productos">
+            <!-- Se insertan dinámicamente -->
+          </ul>
+        </section>
+      </div>
+
+      <section class="reportes" id="reportes">
+        <h2>📄 Generar Reporte</h2>
+        <p>Haz clic para generar un informe del stock actual.</p>
+        <button id="generar-reporte">📥 Generar Reporte</button>
+        <div id="mensaje-reporte" class="mensaje"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 Galaga - Panel del Jefe</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const usuario = sessionStorage.getItem('usuarioActual');
+      if (!usuario) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      let productos = [];
+      let productosValidados = [];
+
+      const lista = document.getElementById('lista-productos');
+      const form = document.getElementById('verificacion-form');
+      const mensajeValidacion = document.getElementById('mensaje-validacion');
+      const mensajeReporte = document.getElementById('mensaje-reporte');
+
+      function cargarProductos() {
+        const datos = localStorage.getItem('productosGalaga');
+        if (!datos) {
+          lista.innerHTML = '<li class="vacio">No hay productos registrados.</li>';
+          return;
+        }
+
+        try {
+          productos = JSON.parse(datos);
+        } catch (e) {
+          productos = [];
+          lista.innerHTML = '<li class="vacio">Error al cargar productos.</li>';
+          return;
+        }
+
+        if (productos.length === 0) {
+          lista.innerHTML = '<li class="vacio">No hay productos registrados.</li>';
+          return;
+        }
+
+        lista.innerHTML = '';
+        productos.forEach(p => {
+          const fechaHoraEntrega = `${p.fecha_entrega || ''} ${p.hora_entrega || ''}`.trim();
+          const li = document.createElement('li');
+          li.innerHTML = `<strong>${p.id}</strong>: ${p.nombre_producto} — <em>${p.empresa}</em> (${fechaHoraEntrega})`;
+          lista.appendChild(li);
+        });
+      }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const codigo = document.getElementById('codigo').value.trim();
+        if (!codigo) {
+          mostrarMensaje(mensajeValidacion, "❌ Debes ingresar un código.", "error");
+          return;
+        }
+
+        const producto = productos.find(p => p.id === codigo);
+        if (producto) {
+          const yaValidado = productosValidados.some(p => p.id === producto.id);
+          if (!yaValidado) productosValidados.push(producto);
+
+          mostrarMensaje(mensajeValidacion, "✅ Producto válido y registrado.", "success");
+        } else {
+          mostrarMensaje(mensajeValidacion, "🚫 Código inválido. No existe en el sistema.", "error");
+        }
+      });
+
+      document.getElementById('generar-reporte').addEventListener('click', () => {
+        if (productosValidados.length === 0) {
+          mostrarMensaje(mensajeReporte, "⚠️ Primero valida al menos un producto.", "warning");
+          return;
+        }
+
+        // Configuración del reporte
+        const nombreHoja = "Productos Validados";
+        const nombreArchivo = `Reporte_Galaga_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        // 1. Encabezado decorativo
+        const encabezado = [
+          ["GALAGA LOGISTICS", "", "", "", "", "", "", ""],
+          ["REPORTE DE PRODUCTOS VALIDADOS", "", "", "", "", "", "", ""],
+          ["Generado el:", new Date().toLocaleDateString(), "", "", "", "", "", ""],
+          ["Generado por:", JSON.parse(usuario).username, "", "", "", "", "", ""],
+          [], // Fila vacía para separación
+          ["ID", "Nombre", "Empresa", "Cantidad", "Fecha Ingreso", "Hora Ingreso", "Fecha Salida", "Hora Salida"]
+        ];
+
+        // 2. Datos de productos
+        const datos = productosValidados.map(p => [
+          p.id,
+          p.nombre_producto,
+          p.empresa,
+          p.cantidad,
+          p.fecha_entrega,
+          p.hora_entrega,
+          p.fecha_salida,
+          p.hora_salida
+        ]);
+
+        // 3. Pie de página
+        const pie = [
+          [],
+          ["Total productos validados:", productosValidados.length, "", "", "", "", "", ""]
+        ];
+
+        // Combinar todo
+        const contenido = [...encabezado, ...datos, ...pie];
+
+        // Crear hoja de cálculo
+        const hoja = XLSX.utils.aoa_to_sheet(contenido);
+
+        // Aplicar estilos
+        const rango = XLSX.utils.decode_range(hoja['!ref']);
+        
+        // Estilo para encabezado principal (filas 1-4)
+        for (let R = 0; R < 4; ++R) {
+          for (let C = 0; C <= rango.e.c; ++C) {
+            const celda = hoja[XLSX.utils.encode_cell({r:R, c:C})];
+            if (!celda) continue;
+            
+            celda.s = {
+              font: { bold: true, sz: R === 0 ? 16 : 12 },
+              alignment: { horizontal: R === 0 ? "center" : "left" },
+              fill: { fgColor: { rgb: R === 0 ? "003366" : "E6F2FF" } },
+              color: { rgb: "FFFFFF" }
+            };
+            
+            // Fusionar celdas del título
+            if (R === 0 && C === 0) {
+              hoja['!merges'] = hoja['!merges'] || [];
+              hoja['!merges'].push({ s: {r:0, c:0}, e: {r:0, c:7} });
+            }
+            if (R === 1 && C === 0) {
+              hoja['!merges'] = hoja['!merges'] || [];
+              hoja['!merges'].push({ s: {r:1, c:0}, e: {r:1, c:7} });
+            }
+          }
+        }
+
+        // Estilo para encabezados de columnas (fila 5)
+        for (let C = 0; C <= rango.e.c; ++C) {
+          const celda = hoja[XLSX.utils.encode_cell({r:5, c:C})];
+          if (celda) {
+            celda.s = {
+              font: { bold: true, color: { rgb: "FFFFFF" } },
+              fill: { fgColor: { rgb: "336699" } },
+              border: {
+                top: { style: "thin", color: { rgb: "000000" } },
+                bottom: { style: "thin", color: { rgb: "000000" } },
+                left: { style: "thin", color: { rgb: "000000" } },
+                right: { style: "thin", color: { rgb: "000000" } }
+              }
+            };
+          }
+        }
+
+        // Estilo para pie de página
+        const filaPie = contenido.length - 1;
+        for (let C = 0; C <= 1; ++C) {
+          const celda = hoja[XLSX.utils.encode_cell({r:filaPie, c:C})];
+          if (celda) {
+            celda.s = {
+              font: { bold: true },
+              fill: { fgColor: { rgb: "F2F2F2" } }
+            };
+          }
+        }
+
+        // Ajustar ancho de columnas
+        hoja['!cols'] = [
+          { wch: 15 }, // ID
+          { wch: 25 }, // Nombre
+          { wch: 20 }, // Empresa
+          { wch: 10 }, // Cantidad
+          { wch: 12 }, // Fecha Ingreso
+          { wch: 10 }, // Hora Ingreso
+          { wch: 12 }, // Fecha Salida
+          { wch: 10 }  // Hora Salida
+        ];
+
+        // Crear libro y guardar
+        const libro = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(libro, hoja, nombreHoja);
+        XLSX.writeFile(libro, nombreArchivo);
+
+        mostrarMensaje(mensajeReporte, "📄 Reporte generado y descargado correctamente.", "success");
+      });
+
+      function mostrarMensaje(elemento, texto, tipo) {
+        elemento.textContent = texto;
+        elemento.style.color = 
+          tipo === "success" ? "green" :
+          tipo === "error" ? "red" :
+          tipo === "warning" ? "orange" : "black";
+        
+        elemento.style.backgroundColor = 
+          tipo === "success" ? "#e6ffe6" :
+          tipo === "error" ? "#ffe6e6" :
+          tipo === "warning" ? "#fff3e6" : "#f0f0f0";
+        
+        elemento.style.border = `1px solid ${
+          tipo === "success" ? "green" :
+          tipo === "error" ? "red" :
+          tipo === "warning" ? "orange" : "#ccc"
+        }`;
+      }
+
+      document.querySelector('.logout').addEventListener('click', (e) => {
+        e.preventDefault();
+        sessionStorage.removeItem('usuarioActual');
+        window.location.href = 'index.html';
+      });
+
+      cargarProductos();
+    });
+  </script>
+</body>
+</html>

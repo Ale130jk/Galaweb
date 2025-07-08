@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Panel Almacenero - Galaga</title>
+  <link rel="stylesheet" href="almacenero.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    .mensaje {
+      margin-top: 1rem;
+      font-weight: bold;
+      font-size: 1rem;
+      padding: 0.5rem;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+    }
+    .mensaje.error {
+      background-color: #ffe0e0;
+      color: #b20000;
+    }
+    .mensaje.success {
+      background-color: #e0ffe0;
+      color: #007500;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <h1>📦 Panel del Almacenero - Galaga</h1>
+    </header>
+
+    <nav>
+      <ul>
+        <li><a href="#" id="btn-inicio">🏠 Inicio</a></li>
+        <li><a href="#" id="btn-empresas">🏢 Registrar Empresa</a></li>
+        <li><a href="#" id="btn-productos">📦 Registrar Producto</a></li>
+        <li><a href="#" class="logout">🚪 Cerrar Sesión</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <!-- INICIO -->
+      <section id="inicio" class="vista">
+        <h2>🏁 Bienvenido al Panel del Almacenero</h2>
+        <p>Comienza registrando empresas y luego los productos a entregar.</p>
+      </section>
+
+      <!-- EMPRESAS -->
+      <section id="empresas" class="vista">
+        <h2>🏢 Registrar Empresa</h2>
+        <form id="form-empresa">
+          <input type="hidden" id="empresa-id" />
+          <label for="ruc">RUC:</label>
+          <input type="text" id="ruc" required />
+          <label for="nombre">Nombre de la Empresa:</label>
+          <input type="text" id="nombre" required />
+          <label for="direccion">Dirección:</label>
+          <input type="text" id="direccion" required />
+          <div class="acciones">
+            <button type="submit">💾 Guardar</button>
+            <button type="button" id="cancelar-edicion">❌ Cancelar</button>
+            <button type="reset">🧹 Limpiar</button>
+          </div>
+        </form>
+        <table id="tabla-empresas">
+          <thead>
+            <tr>
+              <th>RUC</th>
+              <th>Nombre</th>
+              <th>Dirección</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="lista-empresas"></tbody>
+        </table>
+      </section>
+
+      <!-- PRODUCTOS -->
+      <section id="productos" class="vista">
+        <h2>📦 Registrar Producto</h2>
+        <form id="form-producto">
+          <label for="id">ID del Producto:</label>
+          <input type="text" id="id" required />
+
+          <label for="nombre_producto">Nombre del Producto:</label>
+          <input type="text" id="nombre_producto" required />
+
+          <label for="empresa_texto">Empresa Destino:</label>
+          <input type="text" id="empresa_texto" required placeholder="Nombre de la empresa" />
+
+          <label for="cantidad">Cantidad:</label>
+          <input type="text" id="cantidad" required />
+
+          <label for="fecha_ingreso">Fecha y Hora de Ingreso:</label>
+          <input type="datetime-local" id="fecha_ingreso" required />
+
+          <label for="fecha_salida">Fecha y Hora de Salida:</label>
+          <input type="datetime-local" id="fecha_salida" required />
+
+          <div class="acciones">
+            <button type="submit">📤 Agregar</button>
+            <button type="button" id="actualizar">🔄 Actualizar</button>
+            <button type="button" id="limpiar">🧹 Limpiar</button>
+          </div>
+        </form>
+
+        <div id="mensaje" class="mensaje"></div>
+
+        <h3>📋 Productos Registrados</h3>
+        <table id="tabla-productos">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Empresa</th>
+              <th>Cantidad</th>
+              <th>Ingreso</th>
+              <th>Salida</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="lista-productos"></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    <p>&copy; 2025 Galaga - Almacenero</p>
+  </footer>
+
+
+
+   <script src="empresas.js"></script>
+  <script src="dashboard-almacenero.js"></script>
+  <script>
+    // Navegación entre vistas
+    document.addEventListener('DOMContentLoaded', () => {
+      const usuarioActual = JSON.parse(sessionStorage.getItem('usuarioActual'));
+      if (!usuarioActual || usuarioActual.rol !== 'almacenero') {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      const vistas = document.querySelectorAll('.vista');
+      const botones = {
+        'btn-inicio': 'inicio',
+        'btn-empresas': 'empresas',
+        'btn-productos': 'productos'
+      };
+
+      // Navegación
+      Object.keys(botones).forEach(btnId => {
+        document.getElementById(btnId).addEventListener('click', e => {
+          e.preventDefault();
+          vistas.forEach(v => v.classList.remove('active'));
+          document.getElementById(botones[btnId]).classList.add('active');
+        });
+      });
+
+      // Validación de fechas en productos
+      const ingresoInput = document.getElementById('fecha_ingreso');
+      const salidaInput = document.getElementById('fecha_salida');
+      
+      if (ingresoInput && salidaInput) {
+        const ahora = new Date().toISOString().slice(0, 16);
+        ingresoInput.min = ahora;
+
+        ingresoInput.addEventListener('change', () => {
+          salidaInput.min = ingresoInput.value;
+        });
+        
+        salidaInput.addEventListener('change', () => {
+          if (new Date(salidaInput.value) < new Date(ingresoInput.value)) {
+            salidaInput.setCustomValidity('La fecha de salida no puede ser anterior a la de ingreso.');
+          } else {
+            salidaInput.setCustomValidity('');
+          }
+        });
+      }
+
+      // Cerrar sesión
+      document.querySelector('.logout').addEventListener('click', () => {
+        sessionStorage.removeItem('usuarioActual');
+        window.location.href = 'index.html';
+      });
+    });
+  </script>
+
+</body>
+</html>

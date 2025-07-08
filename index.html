@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GalagaCompany</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a href="https://www.galagasac.pe/?pages=about" target="blank">
+    <img src="ImagenLogoGalalog.png" alt="Logo Galaga" class="logo" />
+  </a>
+
+  <div class="container">
+    <input type="checkbox" id="check" />
+
+    <!-- LOGIN -->
+    <div class="login form">
+      <header>Login</header>
+      <div id="login-error-message" class="error-message"></div>
+      <form id="login-form">
+        <input type="text" id="login-username" name="username" placeholder="Nombre de usuario" required />
+        <input type="password" id="login-password" name="password" placeholder="Contraseña" required />
+        <a href="#" id="forgot-password-link">¿Olvidaste la contraseña?</a>
+        <div id="forgot-box" class="hidden-box">
+          <img src="https://i.gifer.com/7efs.gif" alt="Alerta" class="gif-alerta" />
+          <p><strong>¡Contáctenos para recuperar su cuenta!</strong></p>
+          <p>📞 +51 995-972-009</p>
+        </div>
+        <audio id="bip-audio" preload="auto">
+          <source src="https://www.soundjay.com/buttons/sounds/beep-07.mp3" type="audio/mpeg" />
+        </audio>
+        <input type="submit" id="login-button" class="button" value="Login" />
+      </form>
+      <div class="signup">
+        <span>¿No tienes una cuenta? <label for="check">Signup</label></span>
+      </div>
+    </div>
+
+    <!-- REGISTRO -->
+    <div class="registration form">
+      <header>Signup</header>
+      <form id="register-form">
+        <p><label for="reg-nombre">Nombre:</label><br />
+          <input type="text" id="reg-nombre" name="nombre" required maxlength="50" /></p>
+        <p><label for="reg-apellido">Apellido:</label><br />
+          <input type="text" id="reg-apellido" name="apellido" required maxlength="50" /></p>
+        <p><label for="reg-username">Nombre de usuario:</label><br />
+          <input type="text" id="reg-username" name="username" required maxlength="30" /></p>
+        <p><label for="reg-email">Correo electrónico:</label><br />
+          <input type="email" id="reg-email" name="email" required maxlength="50" /></p>
+        <p><label for="reg-password">Contraseña:</label><br />
+          <input type="password" id="reg-password" name="password" required minlength="6" maxlength="20" /></p>
+        <p><label for="reg-confirm-password">Confirma tu contraseña:</label><br />
+          <input type="password" id="reg-confirm-password" name="confirmPassword" required minlength="6" maxlength="20" /></p>
+        <p><label for="reg-rol">Seleccione rol:</label><br />
+          <select id="reg-rol" name="rol" required>
+            <option value="">-- Seleccione rol --</option>
+            <option value="jefe">Jefe</option>
+            <option value="almacenero">Almacenero</option>
+          </select></p>
+        <div id="register-message" class="error-message" aria-live="polite"></div>
+        <p><input type="button" id="register-button" class="button" value="Registrarse" /></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script>
+    // Inicializar usuarios por defecto
+    document.addEventListener('DOMContentLoaded', () => {
+      const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+      const yaExisten = usuarios.some(u => u.username === 'almacenero1') && usuarios.some(u => u.username === 'admin');
+      if (!yaExisten) {
+        usuarios.push(
+          { id: crypto.randomUUID(), username: 'almacenero1', password: '1234', rol: 'almacenero' },
+          { id: crypto.randomUUID(), username: 'admin', password: '1234', rol: 'jefe' }
+        );
+        localStorage.setItem('usuarios', JSON.stringify(usuarios));
+        console.log('✅ Usuarios por defecto insertados');
+      }
+    });
+
+    // Registro
+    document.getElementById('register-button').addEventListener('click', () => {
+      const username = document.getElementById('reg-username').value.trim();
+      const password = document.getElementById('reg-password').value;
+      const confirm = document.getElementById('reg-confirm-password').value;
+      const rol = document.getElementById('reg-rol').value;
+      const mensaje = document.getElementById('register-message');
+
+      if (password !== confirm) {
+        mensaje.textContent = "❌ Las contraseñas no coinciden.";
+        return;
+      }
+
+      const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+      if (usuarios.find(u => u.username === username)) {
+        mensaje.textContent = "⚠️ Usuario ya registrado.";
+        return;
+      }
+
+      const nuevoUsuario = {
+        id: crypto.randomUUID(),
+        username,
+        password,
+        rol
+      };
+
+      usuarios.push(nuevoUsuario);
+      localStorage.setItem('usuarios', JSON.stringify(usuarios));
+      mensaje.textContent = "✅ Usuario registrado correctamente.";
+      document.getElementById('register-form').reset();
+    });
+
+    // Login
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+      const mensaje = document.getElementById('login-error-message');
+
+      const usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+      const user = usuarios.find(u => u.username === username && u.password === password);
+
+      if (!user) {
+        mensaje.textContent = "❌ Usuario o contraseña incorrecta.";
+        return;
+      }
+
+      sessionStorage.setItem('usuarioActual', JSON.stringify(user));
+      mensaje.textContent = "";
+
+      if (user.rol === 'almacenero') {
+        window.location.href = "dashboard-almacenero.html";
+      } else if (user.rol === 'jefe') {
+        window.location.href = "dashboard-jefe.html";
+      }
+    });
+
+    // Mostrar cuadro de ayuda
+    document.addEventListener('DOMContentLoaded', () => {
+      const forgotPasswordLink = document.getElementById('forgot-password-link');
+      const forgotBox = document.getElementById('forgot-box');
+      forgotPasswordLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.getElementById('bip-audio').play();
+        forgotBox.style.display = forgotBox.style.display === 'block' ? 'none' : 'block';
+      });
+    });
+  </script>
+</body>
+</html>
